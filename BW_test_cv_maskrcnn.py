@@ -337,8 +337,9 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
     model = load_model(model_weight_path, compile=False)
 
     # test_ids = [os.path.join(jpgpattern, jpg_name) for jpg_name in os.listdir(jpgpattern)]
+    test_ids = [os.path.join(jpgpattern, os.listdir(jpgpattern)[i]) for i in jpg_cross_data]
 
-    test_ids = [os.path.join(jpgpattern, jpg_name) for jpg_name in jpg_cross_data]
+    # test_ids = [os.path.join(jpgpattern, jpg_name) for jpg_name in jpg_cross_data]
     # print(test_ids)
     # testdata = np.zeros((len(test_ids), IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
     # radiodata = np.zeros((len(test_ids), IMG_HEIGHT, IMG_WIDTH, 3), dtype=np.uint8)
@@ -398,7 +399,8 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
             print(fname)
             if fname == 'P0124318_17_45_down' or fname == 'P0124318_17_45_up':
                 continue
-            
+            # if fname != "23399866_20191118_17_down":    continue
+
             # npypath = os.path.join(lblfilepath, fname) + '.npy'
             pklpath = os.path.join(lblfilepath, fname) + '.pkl'     # Ground Truth
 
@@ -438,13 +440,20 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
                 full_teeth = np.zeros((len(fullteeths), IMG_HEIGHT, IMG_WIDTH))
                 iso_img_array = np.zeros((len(fullteeths), IMG_HEIGHT, IMG_WIDTH, 3), dtype=np.uint8)
                 bboxes = np.zeros((len(fullteeths), 4), dtype=int)
+                # continue
 
             except:         # 假設maskrcnn沒讀到牙齒，則只計算GT的數量
                 print('Zero Prediction!!!!')
                 # start += 1
+                print(f'{fname}\n')
                 num_GT, label_GT = retrieve_carries(label, carries_threshold=0)
                 num_GT -= 1
                 total_gt += num_GT
+                gt_img = copy.deepcopy(img)
+                gt_img[label == 6, :] = [255, 0, 0]
+                pred_img = preds2rgb(pred_label)
+                compare = np.concatenate([gt_img, pred_img, pred_img], axis=1)
+                cv2.imwrite(predict_path+ fname + '_p.jpg', compare)
                 continue
 
             # bboxes = dictdata['bbox']
@@ -731,9 +740,9 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
         # print(pred_label.shape)
         # print(np.bincount(pred_label.flatten()))
         preds_image_rgb = preds2rgb(pred_label)
-
         pred_img = copy.deepcopy(img)
         pred_img[pred_label == 8, :] = [128, 0, 75]
+        preds_image_rgb[pred_label == 8, :] = [128, 0, 75]
         pred_img[pred_label == 6] = [42, 42, 128]
 
         # preds_image_rgb[pred_label == 6] = [42, 42, 128]
@@ -751,7 +760,8 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
 
         if predict_path:
 
-            cv2.imwrite(predict_path+ rgb_name + '_p_gt{}_pred{}.jpg'.format(num_GT, num_Pred), compare)
+            # cv2.imwrite(predict_path+ rgb_name + '_p_gt{}_pred{}.jpg'.format(num_GT, num_Pred), compare)
+            cv2.imwrite(predict_path+ rgb_name + '_p.jpg', compare)
 
         # start += 1
 
@@ -779,18 +789,18 @@ def pa_test(model_weight_path, jpgpattern, jpg_cross_data, lblfilepath=None, pre
 if __name__ == '__main__':
     jpgpattern = './Data/CutImage'
     lblfilepath = './Data/CutImage_label'        # GT label Path
-    # model_weight_path = './weights/cv_alldata/100epochs_iso_baseline_ce_maskrcnn/unet_BW_cut_cross0.h5'
-    model_weight_path = './weights/cv_alldata/unet_BW_cross0.h5'
+    model_weight_path = './weights/cv_alldata/100epochs_iso_baseline_multifocalloss_maskrcnn/unet_BW_cut_cross0.h5'
+    # model_weight_path = './weights/cv_alldata/unet_BW_cross0.h5'
     
     predict_path = './Predict_result_iso_cv_alldata/maskrcnn/'
     # predict_path = './Predict_result_iso_cv_alldata/maskrcnn/100epochs_aug_weightedloss/'
     # predict_path = './Predict_result_iso_cv_alldata/maskrcnn/'
-    cross_data_path = './weights/cv_alldata/BW_panoptic_cross_data_214.pkl'
+    cross_data_path = './weights/cv_alldata/N8_cross_data.pkl'
 
     filedata = open(cross_data_path, 'rb')
-    cross_dictData = pickle.load(filedata)
-    filedata.close()
-    val_idx = cross_dictData['val_idx']
+    _, val_idx = pickle.load(filedata)
+    # filedata.close()
+    # val_idx = cross_dictData['val_idx']
 
     sum_TP = 0
     sum_GT = 0
